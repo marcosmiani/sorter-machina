@@ -1,50 +1,5 @@
 /* global onmessage, postMessage */
 
-function getRandomInt (max) {
-  return Math.floor(Math.random() * Math.floor(max))
-}
-
-function createArray (n, fillerFn) {
-  const arr = new Uint32Array(n)
-  for (let i = 0; i < n; ++i) arr[i] = fillerFn(n)
-  return arr
-}
-
-function increaseSizeBy (arr, n) {
-  const biggerArr = new Uint32Array(arr.length + n)
-  arr.set(arr, 0)
-  for (let i = (arr.length - 1); i < (arr.length + n); ++i) arr[i] = getRandomInt(arr.length + n)
-  return biggerArr
-}
-
-/* definitly too slow, but much simpler to stop midway
-*/
-function bubbleSort (list) {
-  // Getting the array length
-  const length = list.length
-
-  // The main loop to iterate over the whole list
-  // let i = length - 1
-  // const interval = setInterval(() => {
-  for (let i = length - 1; i >= 0; i--) {
-    // Child loop to make iterate all over and over and compare by pairs
-    for (let j = 1; j <= i; j++) {
-      // If the current item is smaller than the next, they will change positions
-      if (list[j - 1] > list[j]) {
-        const aux = list[j - 1]
-        list[j - 1] = list[j]
-        list[j] = aux
-      }
-    }
-    // Return the list with every iteractions to keep tabs
-    postMessage({
-      action: 'item-processed',
-      result: list
-    })
-  }
-  return list
-}
-
 let swappedMade = 0
 const MAX_SWAPPED = 1000
 
@@ -60,7 +15,7 @@ function swap (items, leftIndex, rightIndex) {
   if (swappedMade === MAX_SWAPPED) {
     swappedMade = 0
     postMessage({
-      action: 'items-processed',
+      action: 'sort-tick',
       result: items
     })
   }
@@ -102,40 +57,12 @@ function quickSort (items, left, right) {
 }
 
 onmessage = async function (e) { // eslint-disable-line no-native-reassign,no-global-assign
-  const { action, items, size } = e.data
-  console.log('Message received from main script')
+  const { action, items } = e.data
 
-  console.info('Posting', action)
-  switch (action) {
-    case 'init': {
-      postMessage({
-        action,
-        result: createArray(size, getRandomInt)
-      })
-      break
-    }
-    case 'increase-size': {
-      postMessage({
-        action,
-        result: increaseSizeBy(items, size)
-      })
-      break
-    }
-    case 'sort': {
-      const result = quickSort(items, 0, items.length - 1)
+  const result = quickSort(items, 0, items.length - 1)
 
-      postMessage({
-        action,
-        result
-      })
-      break
-    }
-    default: {
-      console.info('Posting default')
-      postMessage({
-        action,
-        result: null
-      })
-    }
-  }
+  postMessage({
+    action,
+    result
+  })
 }
