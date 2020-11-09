@@ -21,7 +21,7 @@ const AppWrapper = styled.div`
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  font-size: calc(10px + 2vmin);
+  font-size: 20px;
   color: white;
   padding: 20px;
 `
@@ -45,49 +45,63 @@ const Logo = styled.img`
 const FormBlock = styled.div`
   display: flex;
   flex-direction: row;
-  align-items: flex-start;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  margin-bottom: 16px;
 `
 
 const Label = styled.label`
   text-align: left;
-  font-size: calc(5px + 2vmin);
-  min-width: 250px;
-  margin-bottom: 10px;
+  flex: 1 0 auto;
+  min-width: 150px;
+`
+
+const MinMax = styled.div`
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0 0 20px;
+
+  &>span {
+    display: flex;
+    font-size: 16px;
+    justify-content: flex-end;
+  }
 `
 
 const Input = styled.input`
   width: 100px;
   height: 25px;
   align-self: flex-end;
-  font-size: calc(2px + 2vmin);
-  margin-bottom: 10px;
+  font-size: 20px;
   background-color: transparent;
   border: 0;
-  border-bottom: 2px dotted white;
+  border-bottom: 2px dashed white;
   color: white;
+  text-align: right;
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+  margin-bottom: 4px;
 `
 
 const Checkbox = styled.input`
-  width: 100px;
+  width: 25px;
   height: 25px;
   align-self: flex-end;
-  font-size: calc(2px + 2vmin);
-  margin-bottom: 10px;
-  background-color: transparent;
-  border: 0;
-  border-bottom: 2px dotted white;
   color: white;
 `
 
 const Button = styled.button`
   width: 50px;
   height: 50px;
-  font-size: calc(2px + 2vmin);
+  font-size: 16px;
   border-radius: 50%;
   color: white;
   background-color: darkgreen;
   border: 0;
   cursor: pointer;
+  font-weight: 900;
 
   &:disabled {
     cursor: wait;
@@ -104,7 +118,7 @@ const Warning = styled.code`
   color: darkkhaki;
   margin: 20px 0;
   max-width: 350px;
-  font-size: calc(2vmin);
+  font-size: 14px;
 `
 
 function createWorker (callback = () => {}) {
@@ -213,22 +227,25 @@ function App () {
       <Header>
         <Logo processing={processing} src={logo} alt='logo' />
         <FormBlock>
-          <Label htmlFor='interval'>
-            Size (2-1000000):
+          <Label htmlFor='size'>
+            Size:
           </Label>
-          <Input
-            type='number'
-            name='size'
-            value={itemSize}
-            min={MIN_ITEMS_TO_PROCESS}
-            max={MAX_ITEMS_TO_PROCESS}
-            onChange={(e) => {
-              setItemSize(correctValue(e.target.value, MIN_ITEMS_TO_PROCESS, MAX_ITEMS_TO_PROCESS))
-            }}
-          />
+          <MinMax>
+            <Input
+              type='number'
+              name='size'
+              value={itemSize}
+              min={MIN_ITEMS_TO_PROCESS}
+              max={MAX_ITEMS_TO_PROCESS}
+              onChange={(e) => {
+                setItemSize(correctValue(e.target.value, MIN_ITEMS_TO_PROCESS, MAX_ITEMS_TO_PROCESS))
+              }}
+            />
+            <span>2 to 1000000</span>
+          </MinMax>
         </FormBlock>
         <FormBlock>
-          <Label htmlFor='interval'>
+          <Label htmlFor='enabledInterval'>
             Enable intervals:
           </Label>
           <Checkbox
@@ -244,18 +261,21 @@ function App () {
         {intervalStatus && (
           <FormBlock>
             <Label htmlFor='interval'>
-              Interval ms (50-100):
+              Interval ms:
             </Label>
-            <Input
-              type='number'
-              name='interval'
-              value={intervalTime}
-              min={MS_MIN_INTERVAL}
-              max={MS_MAX_INTERVAL}
-              onChange={(e) => {
-                setIntervalTime(correctValue(e.target.value, MS_MIN_INTERVAL, MS_MAX_INTERVAL))
-              }}
-            />
+            <MinMax>
+              <Input
+                type='number'
+                name='interval'
+                value={intervalTime}
+                min={MS_MIN_INTERVAL}
+                max={MS_MAX_INTERVAL}
+                onChange={(e) => {
+                  setIntervalTime(correctValue(e.target.value, MS_MIN_INTERVAL, MS_MAX_INTERVAL))
+                }}
+              />
+              <span>50 to 100</span>
+            </MinMax>
           </FormBlock>
         )}
         {showWarning && (
@@ -275,7 +295,7 @@ function App () {
             })
           }}
         >
-          Go
+          GO
         </Button>
       </Header>
 
