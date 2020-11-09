@@ -1,41 +1,111 @@
 /* global Worker */
 import React, { useState } from 'react'
 import logo from './logo.svg'
-import './App.css'
+import { startTimer, stopTimer, createArray, increaseArraySizeBy, correctValue } from './utils'
+import styled, { keyframes } from 'styled-components'
 
-function startTimer (name = 'default') {
-  const startTime = new Date()
-  console.info('starting timer at: ', startTime.toISOString())
-  return { name, startTime }
-}
-
-function stopTimer (timer) {
-  let timeUsed = 0
-  if (timer) {
-    const { name, startTime } = timer
-    const endTime = new Date()
-    timeUsed = endTime.getTime() - startTime.getTime()
-    console.info(`stopping ${name} at ${endTime.toISOString()}!, duration: ${timeUsed} ms`)
+const rotate = keyframes`
+  from {
+    transform: rotate(0deg);
   }
-  return timeUsed
-}
+  to {
+    transform: rotate(360deg);
+  }
+`
 
-function getRandomInt (max) {
-  return Math.floor(Math.random() * Math.floor(max))
-}
+const AppWrapper = styled.div`
+  text-align: center;
+  background-color: #282c34;
+  min-height: calc(100vh - 40px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(10px + 2vmin);
+  color: white;
+  padding: 20px;
+`
 
-function createArray (n) {
-  const arr = new Uint32Array(n)
-  for (let i = 0; i < n; ++i) arr[i] = getRandomInt(n)
-  return arr
-}
+const Header = styled.header`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+`
 
-function increaseSizeBy (arr, n) {
-  const biggerArr = new Uint32Array(arr.length + n)
-  biggerArr.set(arr, 0)
-  for (let i = (arr.length - 1); i < (arr.length + n); ++i) arr[i] = getRandomInt(arr.length + n)
-  return biggerArr
-}
+const Logo = styled.img`
+  height: 40vmin;
+  pointer-events: none;
+
+  @media (prefers-reduced-motion: no-preference) {
+    animation: ${rotate} infinite ${({ processing }) => processing ? '1s' : '20s'} linear;
+  }
+`
+
+const FormBlock = styled.div`
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+`
+
+const Label = styled.label`
+  text-align: left;
+  font-size: calc(5px + 2vmin);
+  min-width: 250px;
+  margin-bottom: 10px;
+`
+
+const Input = styled.input`
+  width: 100px;
+  height: 25px;
+  align-self: flex-end;
+  font-size: calc(2px + 2vmin);
+  margin-bottom: 10px;
+  background-color: transparent;
+  border: 0;
+  border-bottom: 2px dotted white;
+  color: white;
+`
+
+const Checkbox = styled.input`
+  width: 100px;
+  height: 25px;
+  align-self: flex-end;
+  font-size: calc(2px + 2vmin);
+  margin-bottom: 10px;
+  background-color: transparent;
+  border: 0;
+  border-bottom: 2px dotted white;
+  color: white;
+`
+
+const Button = styled.button`
+  width: 50px;
+  height: 50px;
+  font-size: calc(2px + 2vmin);
+  border-radius: 50%;
+  color: white;
+  background-color: darkgreen;
+  border: 0;
+  cursor: pointer;
+
+  &:disabled {
+    cursor: wait;
+    background-color: gray;
+  }
+`
+
+const Body = styled.div`
+  max-width: 250px;
+  height: 250px;
+`
+
+const Warning = styled.code`
+  color: darkkhaki;
+  margin: 20px 0;
+  max-width: 350px;
+  font-size: calc(2vmin);
+`
 
 function createWorker (callback = () => {}) {
   let worker = null
@@ -76,26 +146,27 @@ function sortProcess (
   return newWorker
 }
 
-function createAndSortArray (n, msInterval, callback = () => {}) {
-  const t = startTimer('sort it all')
-  let sortWorker = null
+function createAndSortArray (n, msInterval = null, callback = () => {}) {
   const MAX_INTERVALS = 100
+  const generalTimer = startTimer('sort it all')
+  let machineTimer = null
+  let sortWorker = null
   let intervalCount = 0
   let insertionInterval = null
 
   let semiSortedItems = createArray(n) // not completely sorted items
-  let t2 = null
+
   // Sorting mechanism
   const sort = (items) => {
-    stopTimer(t2)
-    t2 = startTimer('sort machine')
+    stopTimer(machineTimer)
+    machineTimer = startTimer('sort machine')
     sortWorker = sortProcess(
       sortWorker,
       { items },
       (sortedItems) => {
         if (sortWorker) sortWorker.terminate()
-        clearInterval(insertionInterval)
-        callback(sortedItems, stopTimer(t), stopTimer(t2))
+        if (insertionInterval) clearInterval(insertionInterval)
+        callback(sortedItems, stopTimer(generalTimer), stopTimer(machineTimer))
       },
       (sortedItems) => {
         semiSortedItems = sortedItems
@@ -104,86 +175,123 @@ function createAndSortArray (n, msInterval, callback = () => {}) {
   }
 
   // Interval to add more items
-  insertionInterval = setInterval(() => {
-    // sortWorker.terminate()
-    console.info('interval nr', intervalCount)
-    intervalCount++
+  if (msInterval) {
+    insertionInterval = setInterval(() => {
+      intervalCount++
+      // Not going to let this go to the infinite eh?
+      if (intervalCount === MAX_INTERVALS) {
+        clearInterval(insertionInterval)
+      }
+      semiSortedItems = increaseArraySizeBy(semiSortedItems, 1)
 
-    if (intervalCount === MAX_INTERVALS) {
-      clearInterval(insertionInterval)
-    }
-    semiSortedItems = increaseSizeBy(semiSortedItems, 1)
-    console.info(semiSortedItems)
-    sort(semiSortedItems)
-  }, msInterval)
+      sort(semiSortedItems)
+    }, msInterval)
+  }
+
+  sort(semiSortedItems)
 }
 
 const MIN_ITEMS_TO_PROCESS = 2
-const MAX_ITEMS_TO_PROCESS = 100000
+const REQUESTED_ITEMS_TO_PROCESS = 100000
+const MAX_ITEMS_TO_PROCESS = 1000000
 const MS_MIN_INTERVAL = 50
-const MS_MAX_INTERVAL = 100
+const MS_MAX_INTERVAL = 1000
 
 function App () {
+  const [processing, setProcessing] = useState(false)
   const [items, setItems] = useState([])
   const [time, setTime] = useState(null)
   const [workerTime, setWorkerTime] = useState(null)
-  const [itemSize, setItemSize] = useState(100000)
+  const [itemSize, setItemSize] = useState(REQUESTED_ITEMS_TO_PROCESS)
+  const [intervalStatus, setIntervalStatus] = useState(true)
   const [intervalTime, setIntervalTime] = useState(MS_MIN_INTERVAL)
 
-  return (
-    <div className='App'>
-      <header className='App-header'>
-        <img src={logo} className='App-logo' alt='logo' />
-        {time && (
-          <div>
-            <p className='App-logo_message'>
-              Time used: <code>{time}ms</code> for {items.length} items
-            </p>
-            <p className='App-logo_message'>
-              the worker took <code>{workerTime}ms</code> to sort it all
-            </p>
-          </div>
-        )}
+  const showWarning = itemSize > (MAX_ITEMS_TO_PROCESS * 0.7)
 
-        <label for='interval'>
-          size (2-1000000):
-          <input
+  return (
+    <AppWrapper>
+      <Header>
+        <Logo processing={processing} src={logo} alt='logo' />
+        <FormBlock>
+          <Label htmlFor='interval'>
+            Size (2-1000000):
+          </Label>
+          <Input
             type='number'
-            name='interval'
+            name='size'
             value={itemSize}
             min={MIN_ITEMS_TO_PROCESS}
             max={MAX_ITEMS_TO_PROCESS}
             onChange={(e) => {
-              setItemSize(e.target.value)
+              setItemSize(correctValue(e.target.value, MIN_ITEMS_TO_PROCESS, MAX_ITEMS_TO_PROCESS))
             }}
           />
-        </label>
-
-        <label for='interval'>
-          ms (50-100):
-          <input
-            type='number'
-            name='interval'
-            value={intervalTime}
-            min={MS_MIN_INTERVAL}
-            max={MS_MAX_INTERVAL}
+        </FormBlock>
+        <FormBlock>
+          <Label htmlFor='interval'>
+            Enable intervals:
+          </Label>
+          <Checkbox
+            type='checkbox'
+            name='enabledInterval'
+            value='true'
+            checked={intervalStatus}
             onChange={(e) => {
-              setIntervalTime(e.target.value)
+              setIntervalStatus(e.target.checked)
             }}
           />
-        </label>
-
-        <button
-          onClick={() => createAndSortArray(itemSize, intervalTime, (items, msTime, msWorkerTime) => {
-            setItems(items)
-            setTime(msTime)
-            setWorkerTime(msWorkerTime)
-          })}
+        </FormBlock>
+        {intervalStatus && (
+          <FormBlock>
+            <Label htmlFor='interval'>
+              Interval ms (50-100):
+            </Label>
+            <Input
+              type='number'
+              name='interval'
+              value={intervalTime}
+              min={MS_MIN_INTERVAL}
+              max={MS_MAX_INTERVAL}
+              onChange={(e) => {
+                setIntervalTime(correctValue(e.target.value, MS_MIN_INTERVAL, MS_MAX_INTERVAL))
+              }}
+            />
+          </FormBlock>
+        )}
+        {showWarning && (
+          <Warning>
+            This number of numbers could take a lot of time!
+          </Warning>
+        )}
+        <Button
+          disabled={processing}
+          onClick={() => {
+            setProcessing(true)
+            createAndSortArray(itemSize, intervalStatus && intervalTime, (items, msTime, msWorkerTime) => {
+              setProcessing(false)
+              setItems(items)
+              setTime(msTime)
+              setWorkerTime(msWorkerTime)
+            })
+          }}
         >
           Go
-        </button>
-      </header>
-    </div>
+        </Button>
+      </Header>
+
+      <Body>
+        {!processing && time && (
+          <>
+            <p>
+              Total time: <code>{time}ms</code> for {items.length} items
+            </p>
+            <p>
+              Worker time <code>{workerTime}ms</code> to sort it all
+            </p>
+          </>
+        )}
+      </Body>
+    </AppWrapper>
   )
 }
 
