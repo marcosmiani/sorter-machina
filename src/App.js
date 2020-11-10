@@ -110,8 +110,12 @@ const Button = styled.button`
 `
 
 const Body = styled.div`
-  max-width: 250px;
   height: 250px;
+  padding: 0 25px 25px;
+
+  & code{
+    font-weight: 600;
+  }
 `
 
 const Warning = styled.code`
@@ -160,27 +164,31 @@ function sortProcess (
   return newWorker
 }
 
-function createAndSortArray (n, msInterval = null, callback = () => {}) {
+function createAndSortArray (
+  size,
+  msInterval = null,
+  successCallback = () => {},
+  messageCallback = () => {}
+) {
   const MAX_INTERVALS = 100
   const generalTimer = startTimer('sort it all')
   let machineTimer = null
   let sortWorker = null
   let intervalCount = 0
   let insertionInterval = null
+  let insertionTime = 0
 
-  let semiSortedItems = createArray(n) // not completely sorted items
+  let semiSortedItems = createArray(size) // not completely sorted items
 
   // Sorting mechanism
   const sort = (items) => {
-    stopTimer(machineTimer)
-    machineTimer = startTimer('sort machine')
     sortWorker = sortProcess(
       sortWorker,
       { items },
       (sortedItems) => {
         if (sortWorker) sortWorker.terminate()
         if (insertionInterval) clearInterval(insertionInterval)
-        callback(sortedItems, stopTimer(generalTimer), stopTimer(machineTimer))
+        successCallback(sortedItems, stopTimer(generalTimer), stopTimer(machineTimer))
       },
       (sortedItems) => {
         semiSortedItems = sortedItems
@@ -196,6 +204,10 @@ function createAndSortArray (n, msInterval = null, callback = () => {}) {
       if (intervalCount === MAX_INTERVALS) {
         clearInterval(insertionInterval)
       }
+      insertionTime += stopTimer(machineTimer)
+      messageCallback(intervalCount, insertionTime)
+
+      machineTimer = startTimer('sort machine')
       semiSortedItems = increaseArraySizeBy(semiSortedItems, 1)
 
       sort(semiSortedItems)
@@ -215,12 +227,27 @@ function App () {
   const [processing, setProcessing] = useState(false)
   const [items, setItems] = useState([])
   const [time, setTime] = useState(null)
+  const [insertTime, setInsertTime] = useState(0)
+  const [averageInsertTime, setAverageInsertTime] = useState(0)
   const [workerTime, setWorkerTime] = useState(null)
   const [itemSize, setItemSize] = useState(REQUESTED_ITEMS_TO_PROCESS)
   const [intervalStatus, setIntervalStatus] = useState(true)
   const [intervalTime, setIntervalTime] = useState(MS_MIN_INTERVAL)
 
   const showWarning = itemSize > (MAX_ITEMS_TO_PROCESS * 0.7)
+
+  const successCallback = (items, msTime, msWorkerTime) => {
+    setProcessing(false)
+    setItems(items)
+    setTime(msTime)
+    setWorkerTime(msWorkerTime)
+  }
+
+  const messageCallback = (insertions, msTime) => {
+    console.info('message', insertTime, msTime)
+    setInsertTime(msTime)
+    setAverageInsertTime(msTime / insertions)
+  }
 
   return (
     <AppWrapper>
@@ -287,12 +314,12 @@ function App () {
           disabled={processing}
           onClick={() => {
             setProcessing(true)
-            createAndSortArray(itemSize, intervalStatus && intervalTime, (items, msTime, msWorkerTime) => {
-              setProcessing(false)
-              setItems(items)
-              setTime(msTime)
-              setWorkerTime(msWorkerTime)
-            })
+            createAndSortArray(
+              itemSize,
+              intervalStatus && intervalTime,
+              successCallback,
+              messageCallback
+            )
           }}
         >
           GO
@@ -303,10 +330,19 @@ function App () {
         {!processing && time && (
           <>
             <p>
-              Total time: <code>{time}ms</code> for {items.length} items
+              Total time for {items.length} items: <br /><code>{time}ms</code>
             </p>
             <p>
-              Worker time <code>{workerTime}ms</code> to sort it all
+              Worker time to sort last iteration: <br /> <code>{workerTime}ms</code>
+            </p>
+            <p>
+              Time spent on inserting (stoped current sort + insert):
+              <br /><code>{insertTime}ms</code>
+              <br /> Average: <code>{averageInsertTime}ms</code>
+            </p>
+            <p>
+              Time spent on normal JS execution (setting, rendering, etc):
+              <br /><code>{time - insertTime}ms</code>
             </p>
           </>
         )}
